@@ -179,11 +179,5 @@ class MbVideoCompressPlugin: FlutterPlugin, FlutterPlugin {
 
     companion object {
         private const val TAG = "mb_video_compress"
-
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val instance = MbVideoCompressPlugin()
-            instance.init(registrar.context(), registrar.messenger())
-        }
     }
 }
