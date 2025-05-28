@@ -1,28 +1,46 @@
 package com.mobven.videocompress.mb_video_compress
 
-import androidx.annotation.NonNull
-
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import com.otaliastudios.transcoder.Transcoder
+import com.otaliastudios.transcoder.TranscoderListener
+import com.otaliastudios.transcoder.source.TrimDataSource
+import com.otaliastudios.transcoder.source.UriDataSource
+import com.otaliastudios.transcoder.strategy.DefaultAudioStrategy
+import com.otaliastudios.transcoder.strategy.DefaultVideoStrategy
+import com.otaliastudios.transcoder.strategy.RemoveTrackStrategy
+import com.otaliastudios.transcoder.strategy.TrackStrategy
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.BinaryMessenger
+import com.otaliastudios.transcoder.internal.utils.Logger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.MethodChannel.Result
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.Future
 
-/** MbVideoCompressPlugin */
-class MbVideoCompressPlugin: FlutterPlugin, FlutterPlugin {
-  private var _context: Context? = null
+/**
+ * MbVideoCompressPlugin
+ */
+class MbVideoCompressPlugin : MethodCallHandler, FlutterPlugin {
+
+
+    private var _context: Context? = null
     private var _channel: MethodChannel? = null
     private val TAG = "MbVideoCompressPlugin"
     private val LOG = Logger(TAG)
     private var transcodeFuture:Future<Void>? = null
-    var channelName = "mb_video_compress"
+    var channelName = "video_compress"
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val context = _context;
         val channel = _channel;
 
         if (context == null || channel == null) {
-            Log.w(TAG, "Calling MbVideoCompress plugin before initialization")
+            Log.w(TAG, "Calling VideoCompress plugin before initialization")
             return
         }
 
@@ -104,8 +122,12 @@ class MbVideoCompressPlugin: FlutterPlugin, FlutterPlugin {
                     }
                     7 -> {
                         videoTrackStrategy = DefaultVideoStrategy.atMost(1080, 1920).build()
-                    }                    
+                    }
+                    8 -> {
+                        videoTrackStrategy = DefaultVideoStrategy.atMost(2160, 3840).build()
+                    }
                 }
+                Log.w(TAG, videoTrackStrategy.toString())
 
                 audioTrackStrategy = if (includeAudio) {
                     val sampleRate = DefaultAudioStrategy.SAMPLE_RATE_AS_INPUT
@@ -179,11 +201,6 @@ class MbVideoCompressPlugin: FlutterPlugin, FlutterPlugin {
 
     companion object {
         private const val TAG = "mb_video_compress"
-
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val instance = MbVideoCompressPlugin()
-            instance.init(registrar.context(), registrar.messenger())
-        }
     }
+
 }
