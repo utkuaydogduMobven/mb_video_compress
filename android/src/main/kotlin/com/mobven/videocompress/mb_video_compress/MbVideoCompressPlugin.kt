@@ -157,21 +157,48 @@ class MbVideoCompressPlugin : MethodCallHandler, FlutterPlugin {
                             override fun onTranscodeProgress(progress: Double) {
                                 channel.invokeMethod("updateProgress", progress * 100.00)
                             }
+                            // These callbacks run on the main looper via the
+                            // transcoder's Handler — i.e. OUTSIDE the method
+                            // channel's try/catch — so anything that escapes
+                            // here is an uncaught exception that kills the host
+                            // app AND leaves the Dart future hanging forever.
+                            // Every path must therefore answer `result` exactly
+                            // once and never throw.
                             override fun onTranscodeCompleted(successCode: Int) {
                                 channel.invokeMethod("updateProgress", 100.00)
-                                val json = Utility(channelName).getMediaInfoJson(context, destPath)
-                                json.put("isCancel", false)
-                                result.success(json.toString())
-                                if (deleteOrigin) {
+                                // Build the whole payload inside the try, then
+                                // answer `result` exactly once. The transcode
+                                // itself succeeded here; a metadata failure is
+                                // reported as `null` rather than crashing, so
+                                // the caller can surface its own error.
+                                val payload: String? = try {
+                                    val json = Utility(channelName)
+                                            .getMediaInfoJson(context, destPath)
+                                    json.put("isCancel", false)
+                                    json.toString()
+                                } catch (t: Throwable) {
+                                    Log.e(TAG, "getMediaInfoJson failed for $destPath", t)
+                                    null
+                                }
+                                result.success(payload)
+                                // Only drop the source once a usable result
+                                // exists — deleting it after a failed read would
+                                // destroy the input for nothing.
+                                if (payload != null && deleteOrigin) {
                                     File(path).delete()
                                 }
                             }
 
                             override fun onTranscodeCanceled() {
+                                Log.w(TAG, "transcode canceled for $path")
                                 result.success(null)
                             }
 
                             override fun onTranscodeFailed(exception: Throwable) {
+                                // Was discarded, which made every failure
+                                // indistinguishable from a cancel on the Dart
+                                // side. Keep the cause.
+                                Log.e(TAG, "transcode failed for $path", exception)
                                 result.success(null)
                             }
                         }).transcode()
